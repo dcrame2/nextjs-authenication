@@ -1,4 +1,4 @@
-import { hashPassword } from "../../../lib/auth";
+import { hashPassword, verifyPassword } from "../../../lib/auth";
 import { connectToDatabase } from "../../../lib/db";
 
 async function handler(req, res) {
@@ -23,6 +23,15 @@ async function handler(req, res) {
     const client = await connectToDatabase();
     const db = client.db();
 
+    // This is fail safe to ensure a user doesn't already exist in the db, checking via email... obviously.
+    const existingUser = await db.collection("users").findOne({ email: email });
+
+    if (existingUser) {
+      res.status(422).json({ message: "User exists already!" });
+      client.close();
+      return;
+    }
+
     const hashedPassword = await hashPassword(password);
 
     const result = await db.collection("users").insertOne({
@@ -31,6 +40,7 @@ async function handler(req, res) {
     });
 
     res.status(201).json({ message: "Created User!" });
+    client.close();
   }
 }
 
